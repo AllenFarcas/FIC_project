@@ -10,19 +10,12 @@ using namespace std;
 using namespace cv;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
-int H_MIN = 156;
-int H_MAX = 188;
-int S_MIN = 26;
+int H_MIN = 0;
+int H_MAX = 256;
+int S_MIN = 0;
 int S_MAX = 256;
 int V_MIN = 0;
 int V_MAX = 256;
-
-int H_MIN2 = 11;
-int H_MAX2 = 185;
-int S_MIN2 = 106;
-int S_MAX2 = 169;
-int V_MIN2 = 218;
-int V_MAX2 = 256;
 //default capture width and height
 const int FRAME_WIDTH = 640;
 const int FRAME_HEIGHT = 480;
@@ -224,6 +217,7 @@ int main(int argc, char* argv[])
 		//filter HSV image between values and store filtered image to
 		//threshold matrix
 		inRange(HSV, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
+		inRange(HSV, Scalar(H_MAX, S_MAX, V_MAX), Scalar(H_MIN, S_MIN, V_MIN), threshold);
 		//perform morphological operations on thresholded image to eliminate noise
 		//and emphasize the filtered object(s)
 		if (useMorphOps)
@@ -233,16 +227,7 @@ int main(int argc, char* argv[])
 		//filtered object
 		if (trackObjects)
 			trackFilteredObject(x, y, threshold, cameraFeed);
-
-			waitKey(30);
-
-
-			inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-			if (useMorphOps)
-				morphOps(threshold);
-				if (trackObjects)
-					trackFilteredObject(x, y, threshold, cameraFeed);
-
+			trackFilteredObject(x1, y1, threshold, cameraFeed);
 
 		//show frames
 		imshow(windowName2, threshold);

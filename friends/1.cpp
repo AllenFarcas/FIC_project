@@ -1,30 +1,39 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <netdb.h>
+#include <stdlib.h>
+#include <time.h>
+#include<sys/socket.h>
+#include<arpa/inet.h> //inet_addr
 //#include <opencv2\highgui.h>
 #include "opencv2/highgui/highgui.hpp"
 //#include <opencv2\cv.h>
 #include "opencv2/opencv.hpp"
+#include <unistd.h>
+
+char * IP ="193.226.12.217";
+#define	PORT 20232
 
 using namespace std;
 using namespace cv;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
-int H_MIN = 156;
-int H_MAX = 188;
-int S_MIN = 26;
-int S_MAX = 256;
+int H_MIN = 165;
+int H_MAX = 183;
+int S_MIN = 40;
+int S_MAX = 187;
 int V_MIN = 0;
 int V_MAX = 256;
 
-int H_MIN2 = 11;
-int H_MAX2 = 185;
-int S_MIN2 = 106;
-int S_MAX2 = 169;
-int V_MIN2 = 218;
+int H_MIN2 = 22;
+int H_MAX2 = 166;
+int S_MIN2 = 57;
+int S_MAX2 = 187;
+int V_MIN2 = 204;
 int V_MAX2 = 256;
 //default capture width and height
-const int FRAME_WIDTH = 640;
+const int FRAME_WIDTH =640;
 const int FRAME_HEIGHT = 480;
 //max number of objects to be detected in frame
 const int MAX_NUM_OBJECTS = 50;
@@ -73,6 +82,13 @@ void createTrackbars() {
 	sprintf(TrackbarName, "S_MAX", S_MAX);
 	sprintf(TrackbarName, "V_MIN", V_MIN);
 	sprintf(TrackbarName, "V_MAX", V_MAX);
+
+	sprintf(TrackbarName, "H_MIN2", H_MIN2);
+	sprintf(TrackbarName, "H_MAX2", H_MAX2);
+	sprintf(TrackbarName, "S_MIN2", S_MIN2);
+	sprintf(TrackbarName, "S_MAX2", S_MAX2);
+	sprintf(TrackbarName, "V_MIN2", V_MIN2);
+	sprintf(TrackbarName, "V_MAX2", V_MAX2);
 	//create trackbars and insert them into window
 	//3 parameters are: the address of the variable that is changing when the trackbar is moved(eg.H_LOW),
 	//the max value the trackbar can move (eg. H_HIGH),
@@ -84,6 +100,13 @@ void createTrackbars() {
 	createTrackbar("S_MAX", trackbarWindowName, &S_MAX, S_MAX, on_trackbar);
 	createTrackbar("V_MIN", trackbarWindowName, &V_MIN, V_MAX, on_trackbar);
 	createTrackbar("V_MAX", trackbarWindowName, &V_MAX, V_MAX, on_trackbar);
+
+	createTrackbar("H_MIN2", trackbarWindowName, &H_MIN2, H_MAX2, on_trackbar);
+	createTrackbar("H_MAX2", trackbarWindowName, &H_MAX2, H_MAX2, on_trackbar);
+	createTrackbar("S_MIN2", trackbarWindowName, &S_MIN2, S_MAX2, on_trackbar);
+	createTrackbar("S_MAX2", trackbarWindowName, &S_MAX2, S_MAX2, on_trackbar);
+	createTrackbar("V_MIN2", trackbarWindowName, &V_MIN2, V_MAX2, on_trackbar);
+	createTrackbar("V_MAX2", trackbarWindowName, &V_MAX2, V_MAX2, on_trackbar);
 
 
 }
@@ -182,10 +205,60 @@ void trackFilteredObject(int &x, int &y, Mat threshold, Mat &cameraFeed) {
 		else putText(cameraFeed, "TOO MUCH NOISE! ADJUST FILTER", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
 	}
 }
+
+int sendThorughSocket(char *message){
+
+    int socket_desc;
+    struct sockaddr_in server;
+
+
+    //Create socket
+    socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+    if (socket_desc == -1)
+    {
+        printf("Could not create socket");
+    }
+		//server = gethostbyname(IP);
+    server.sin_addr.s_addr = inet_addr("193.226.12.217");
+    server.sin_family = AF_INET;
+    server.sin_port = htons( PORT);
+
+    //Connect to remote server
+    if (connect(socket_desc , (struct sockaddr *)&server , sizeof(server)) < 0)
+    {
+        printf("connect error");
+        return 1;
+    }
+
+    puts("Connected\n");
+
+    //Send some data
+    if( send(socket_desc , message , strlen(message) , 0) < 0)
+    {
+        puts("Send failed");
+        return 1;
+    }
+    puts("Data Send\n");
+
+    return 0;
+
+}
+
+int sendString(char * message){
+	for(int i=0;i<strlen(message);i++){
+		usleep(1000);
+		if(strchr("fblr",message[i])){
+			sendThorughSocket(&message[i]);
+		}else{
+			continue;
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 
-	//some boolean variables for different functionality within this
+	/*//some boolean variables for different functionality within this
 	//program
 	bool trackObjects = true;
 	bool useMorphOps = true;
@@ -197,8 +270,12 @@ int main(int argc, char* argv[])
 	Mat HSV;
 	//matrix storage for binary threshold image
 	Mat threshold;
+
+	Mat threshold2;
 	//x and y values for the location of the object
 	int x = 0, y = 0;
+
+	int x2=0,y2=0;
 	//create slider bars for HSV filtering
 	createTrackbars();
 	//video capture object to acquire webcam feed
@@ -211,48 +288,58 @@ int main(int argc, char* argv[])
 	//start an infinite loop where webcam feed is copied to cameraFeed matrix
 	//all of our operations will be performed within this loop
 
+*/
 
 
-
-	while (1) {
-
-
-		//store image to matrix
+	while (1) {/*
 		capture.read(cameraFeed);
-		//convert frame from BGR to HSV colorspace
-		cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
-		//filter HSV image between values and store filtered image to
-		//threshold matrix
-		inRange(HSV, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
-		//perform morphological operations on thresholded image to eliminate noise
-		//and emphasize the filtered object(s)
-		if (useMorphOps)
-			morphOps(threshold);
-		//pass in thresholded frame to our object tracking function
-		//this function will return the x and y coordinates of the
-		//filtered object
-		if (trackObjects)
-			trackFilteredObject(x, y, threshold, cameraFeed);
-
-			waitKey(30);
+		if(cameraFeed.empty()){
+			printf("Empty buffer");
+			break;
+		}
+		else{
 
 
-			inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-			if (useMorphOps)
-				morphOps(threshold);
-				if (trackObjects)
+
+				//store image to matri
+				//convert frame from BGR to HSV colorspace
+				cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
+				//filter HSV image between values and store filtered image to
+				//threshold matrix
+				inRange(HSV, Scalar(H_MIN, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
+				inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold2);
+				//perform morphological operations on thresholded image to eliminate noise
+				//and emphasize the filtered object(s)
+				if (useMorphOps){
+					morphOps(threshold);
+					morphOps(threshold2);
+				}
+
+				//pass in thresholded frame to our object tracking function
+				//this function will return the x and y coordinates of the
+				//filtered object
+				if (trackObjects){
 					trackFilteredObject(x, y, threshold, cameraFeed);
+					trackFilteredObject(x2, y2, threshold2, cameraFeed);
+				}
 
+				//show frames
+				imshow(windowName2, threshold);
 
-		//show frames
-		imshow(windowName2, threshold);
-		imshow(windowName, cameraFeed);
-		//imshow(windowName1, HSV);
-		setMouseCallback("Original Image", on_mouse, &p);
-		//delay 30ms so that screen can refresh.
-		//image will not appear without this waitKey() command
-		waitKey(30);
+				imshow(windowName2, threshold2);
+
+				imshow(windowName, cameraFeed);
+				//imshow(windowName1, HSV);
+				setMouseCallback("Original Image", on_mouse, &p);
+				//delay 30ms so that screen can refresh.
+				//image will not appear without this waitKey() command
+				waitKey(30);
+			}
+*/
+		char message[5]="lrbs";
+		//scanf("%s", message);
+		//printf("%d\n",sendThorughSocket(message));
+		sendString(message);
 	}
-
 	return 0;
 }

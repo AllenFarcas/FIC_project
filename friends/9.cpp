@@ -5,23 +5,30 @@
 #include "opencv2/highgui/highgui.hpp"
 //#include <opencv2\cv.h>
 #include "opencv2/opencv.hpp"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <netdb.h>
+
+
+
 
 using namespace std;
 using namespace cv;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
-int H_MIN = 156;
-int H_MAX = 188;
-int S_MIN = 26;
+int H_MIN = 169;
+int H_MAX = 185;
+int S_MIN = 20;
 int S_MAX = 256;
-int V_MIN = 0;
+int V_MIN = 105;
 int V_MAX = 256;
-
-int H_MIN2 = 11;
+int H_MIN2 = 27;
 int H_MAX2 = 185;
-int S_MIN2 = 106;
-int S_MAX2 = 169;
-int V_MIN2 = 218;
+int S_MIN2 = 65;
+int S_MAX2 = 256;
+int V_MIN2 = 108;
 int V_MAX2 = 256;
 //default capture width and height
 const int FRAME_WIDTH = 640;
@@ -182,8 +189,23 @@ void trackFilteredObject(int &x, int &y, Mat threshold, Mat &cameraFeed) {
 		else putText(cameraFeed, "TOO MUCH NOISE! ADJUST FILTER", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
 	}
 }
+
+
+void processCharacters(int sock, char *buff[], int nr){
+	int i;
+	for(i=0;i<nr;i++){
+    	send(sock, buff[i], strlen(buff[i]), 0);
+    	printf("Message sent: %s\n", buff[i]);
+		sleep(1);
+	}
+}
+
+
+
+
 int main(int argc, char* argv[])
 {
+
 
 	//some boolean variables for different functionality within this
 	//program
@@ -199,6 +221,7 @@ int main(int argc, char* argv[])
 	Mat threshold;
 	//x and y values for the location of the object
 	int x = 0, y = 0;
+	int x2 = 0, y2 = 0;
 	//create slider bars for HSV filtering
 	createTrackbars();
 	//video capture object to acquire webcam feed
@@ -211,9 +234,43 @@ int main(int argc, char* argv[])
 	//start an infinite loop where webcam feed is copied to cameraFeed matrix
 	//all of our operations will be performed within this loop
 
+		
+	/*Creating the socket*/
+	struct sockaddr_in address;
+    int sock = 0, portNr;
+    struct sockaddr_in serv_addr; 
+	struct hostent *server;
+	char *message[1];
+
+	portNr = 20232;
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0){
+        printf("\n Socket creation error \n");
+        exit(0);
+    }
+
+	server = gethostbyname("193.226.12.217");
+	if (server == NULL) {
+    	printf("ERROR, no such host\n"); 
+		exit(1); 
+	}
+ 
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+  
+    serv_addr.sin_port = htons(portNr);
+  
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+        printf("\nConnection Failed \n");
+        exit(3);
+    }
 
 
-
+	
+	
+	
 	while (1) {
 
 
@@ -234,25 +291,77 @@ int main(int argc, char* argv[])
 		if (trackObjects)
 			trackFilteredObject(x, y, threshold, cameraFeed);
 
-			waitKey(30);
 
 
-			inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-			if (useMorphOps)
-				morphOps(threshold);
-				if (trackObjects)
-					trackFilteredObject(x, y, threshold, cameraFeed);
-
+		inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
+		//perform morphological operations on thresholded image to eliminate noise
+		//and emphasize the filtered object(s)
+		if (useMorphOps)
+			morphOps(threshold);
+		//pass in thresholded frame to our object tracking function
+		//this function will return the x and y coordinates of the
+		//filtered object
+		if (trackObjects)
+			trackFilteredObject(x2, y2, threshold, cameraFeed);
 
 		//show frames
-		imshow(windowName2, threshold);
+		//imshow(windowName2, threshold);
 		imshow(windowName, cameraFeed);
 		//imshow(windowName1, HSV);
 		setMouseCallback("Original Image", on_mouse, &p);
 		//delay 30ms so that screen can refresh.
 		//image will not appear without this waitKey() command
 		waitKey(30);
+
+		
+		
+		//printf("x, y, x2, y2\n %d %d %d %d\n", x, y, x2, y2);
+
+		message[0] = "f";
+		processCharacters(sock, message, sizeof(message)/sizeof(message[0]));		
+	
+		if(y == y2){
+			if(x < x2){
+				message[0] =  "l";
+			}
+			if(x > x2){
+				message[0] = "r";		
+			}
+		}	
+		
+		if(x == x2){
+			if(y < y2){
+				message[0] = "f";
+			}
+			if(y > y2){
+				message[0] = "b";		
+			}
+		}	
+
+		if(y < y2){
+			if(x < x2){
+				message[0] = "l";
+			}
+			if(x > x2){
+				message[0] = "f";
+			}		
+		}
+
+		if(y > y2){
+			if(x < x2){
+				message[0] = "f";
+			}
+			if(x > x2){
+				message[0] = "f";
+			}		
+		}
+
+
+		
+		processCharacters(sock, message, sizeof(message)/sizeof(message[0]));
 	}
+
+	close(sock);
 
 	return 0;
 }

@@ -10,18 +10,17 @@ using namespace std;
 using namespace cv;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
-int H_MIN = 156;
-int H_MAX = 188;
-int S_MIN = 26;
+int H_MIN = 161;
+int H_MAX = 185;
+int S_MIN = 20;
 int S_MAX = 256;
-int V_MIN = 0;
+int V_MIN = 105;
 int V_MAX = 256;
-
-int H_MIN2 = 11;
+int H_MIN2 = 27;
 int H_MAX2 = 185;
-int S_MIN2 = 106;
-int S_MAX2 = 169;
-int V_MIN2 = 218;
+int S_MIN2 = 65;
+int S_MAX2 = 256;
+int V_MIN2 = 108;
 int V_MAX2 = 256;
 //default capture width and height
 const int FRAME_WIDTH = 640;
@@ -213,7 +212,7 @@ int main(int argc, char* argv[])
 
 
 
-
+	
 	while (1) {
 
 
@@ -234,15 +233,30 @@ int main(int argc, char* argv[])
 		if (trackObjects)
 			trackFilteredObject(x, y, threshold, cameraFeed);
 
-			waitKey(30);
-
-
-			inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-			if (useMorphOps)
-				morphOps(threshold);
-				if (trackObjects)
-					trackFilteredObject(x, y, threshold, cameraFeed);
-
+		//show frames
+		imshow(windowName2, threshold);
+		imshow(windowName, cameraFeed);
+		//imshow(windowName1, HSV);
+		setMouseCallback("Original Image", on_mouse, &p);
+		//delay 30ms so that screen can refresh.
+		//image will not appear without this waitKey() command
+		waitKey(30);
+//store image to matrix
+		capture.read(cameraFeed);
+		//convert frame from BGR to HSV colorspace
+		cvtColor(cameraFeed, HSV, COLOR_BGR2HSV);
+		//filter HSV image between values and store filtered image to
+		//threshold matrix
+		inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
+		//perform morphological operations on thresholded image to eliminate noise
+		//and emphasize the filtered object(s)
+		if (useMorphOps)
+			morphOps(threshold);
+		//pass in thresholded frame to our object tracking function
+		//this function will return the x and y coordinates of the
+		//filtered object
+		if (trackObjects)
+			trackFilteredObject(x, y, threshold, cameraFeed);
 
 		//show frames
 		imshow(windowName2, threshold);
@@ -256,3 +270,4 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+

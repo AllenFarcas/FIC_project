@@ -10,19 +10,12 @@ using namespace std;
 using namespace cv;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
-int H_MIN = 156;
-int H_MAX = 188;
-int S_MIN = 26;
+int H_MIN = 0;
+int H_MAX = 256;
+int S_MIN = 0;
 int S_MAX = 256;
 int V_MIN = 0;
 int V_MAX = 256;
-
-int H_MIN2 = 11;
-int H_MAX2 = 185;
-int S_MIN2 = 106;
-int S_MAX2 = 169;
-int V_MIN2 = 218;
-int V_MAX2 = 256;
 //default capture width and height
 const int FRAME_WIDTH = 640;
 const int FRAME_HEIGHT = 480;
@@ -204,7 +197,7 @@ int main(int argc, char* argv[])
 	//video capture object to acquire webcam feed
 	VideoCapture capture;
 	//open capture object at location zero (default location for webcam)
-	capture.open("rtmp://172.16.254.99/live/nimic");
+	capture.open(0);
 	//set height and width of capture frame
 	capture.set(CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
 	capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
@@ -213,7 +206,7 @@ int main(int argc, char* argv[])
 
 
 
-
+	
 	while (1) {
 
 
@@ -234,20 +227,10 @@ int main(int argc, char* argv[])
 		if (trackObjects)
 			trackFilteredObject(x, y, threshold, cameraFeed);
 
-			waitKey(30);
-
-
-			inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-			if (useMorphOps)
-				morphOps(threshold);
-				if (trackObjects)
-					trackFilteredObject(x, y, threshold, cameraFeed);
-
-
 		//show frames
 		imshow(windowName2, threshold);
 		imshow(windowName, cameraFeed);
-		//imshow(windowName1, HSV);
+		imshow(windowName1, HSV);
 		setMouseCallback("Original Image", on_mouse, &p);
 		//delay 30ms so that screen can refresh.
 		//image will not appear without this waitKey() command
@@ -256,3 +239,4 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
