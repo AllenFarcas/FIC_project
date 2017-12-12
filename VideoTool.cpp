@@ -5,6 +5,11 @@
 #include "opencv2/highgui/highgui.hpp"
 //#include <opencv2\cv.h>
 #include "opencv2/opencv.hpp"
+#include <unistd.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <netdb.h>
 
 using namespace std;
 using namespace cv;
@@ -182,9 +187,61 @@ void trackFilteredObject(int &x, int &y, Mat threshold, Mat &cameraFeed) {
 		else putText(cameraFeed, "TOO MUCH NOISE! ADJUST FILTER", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
 	}
 }
+
+void move(int sock, char *buf, int delay) {
+	int n;
+	char aux[5];
+	while(buf[0] != '\0') {	
+ 	 	/* Send message to the server */
+		sprintf(aux,"%c",buf[0]);
+   		n = write(sock, aux, 1);
+   		strcpy(buf,buf+1);
+  	 	if (n < 0) {
+      			perror("ERROR writing to socket");
+   	        	exit(1);
+   	 	}
+		sleep(delay); // delay in miliseconds
+	}
+}
+
 int main(int argc, char* argv[])
 {
-
+   int sockfd, portno;
+   struct sockaddr_in serv_addr;
+   struct hostent *server;
+   char buffer[256];
+  
+  if (argc < 3) {
+      fprintf(stderr,"usage %s hostname port\n", argv[0]);
+      exit(0);
+   }
+   portno = atoi(argv[2]); //193.226.12.219
+   /* Create a socket point */
+   sockfd = socket(AF_INET, SOCK_STREAM, 0);
+   if (sockfd < 0) {
+      perror("ERROR opening socket");
+      exit(1);
+   }
+   server = gethostbyname(argv[1]); //20232
+   if (server == NULL) {
+      fprintf(stderr,"ERROR, no such host\n");
+      exit(0);
+   }
+   bzero((char *) &serv_addr, sizeof(serv_addr));
+   serv_addr.sin_family = AF_INET;
+   bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+   serv_addr.sin_port = htons(portno);
+   /* Now connect to the server */
+   if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+      perror("ERROR connecting");
+      exit(1);
+    }
+  //printf("Please enter the message: ");
+ 	//bzero(buffer,256);
+ 	//fgets(buffer,255,stdin);
+  //move(sockfd,buffer); 
+  
+  
 	//some boolean variables for different functionality within this
 	//program
 	bool trackObjects = true;
@@ -198,7 +255,7 @@ int main(int argc, char* argv[])
 	//matrix storage for binary threshold image
 	Mat threshold;
 	//x and y values for the location of the object
-	int x = 0, y = 0;
+	//int x = 0, y = 0;
 	//create slider bars for HSV filtering
 	createTrackbars();
 	//video capture object to acquire webcam feed
@@ -210,10 +267,9 @@ int main(int argc, char* argv[])
 	capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
 	//start an infinite loop where webcam feed is copied to cameraFeed matrix
 	//all of our operations will be performed within this loop
-
-
-
-
+  int xObj1=0, yObj1=0, xObj1_o, yObj1_o;
+  int xObj2=0, yObj2=0;
+  
 	while (1) {
 
 
@@ -232,18 +288,19 @@ int main(int argc, char* argv[])
 		//this function will return the x and y coordinates of the
 		//filtered object
 		if (trackObjects)
-			trackFilteredObject(x, y, threshold, cameraFeed);
-
-			waitKey(30);
-
-
-			inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-			if (useMorphOps)
-				morphOps(threshold);
-				if (trackObjects)
-					trackFilteredObject(x, y, threshold, cameraFeed);
+			trackFilteredObject(xObj1, yObj1, threshold, cameraFeed);
+    
+    waitKey(30);
 
 
+    inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
+    
+    if (useMorphOps)
+  		morphOps(threshold);
+    
+    if (trackObjects)
+      trackFilteredObject(xObj2, yObj2, threshold, cameraFeed);
+    
 		//show frames
 		imshow(windowName2, threshold);
 		imshow(windowName, cameraFeed);
@@ -252,6 +309,24 @@ int main(int argc, char* argv[])
 		//delay 30ms so that screen can refresh.
 		//image will not appear without this waitKey() command
 		waitKey(30);
+    int difx, dify;
+    difx = abs(xObj1-xObj2);
+    dify = abs(yObj1-yObj2);
+    if (xObj1 && yObj1) {
+      if (xObj2 == 0 && yObj2 ==0) {
+        move(sockfd,"rrrrs");
+      }
+      else {
+        xObj1_o = xObj1;
+        yObj1_o = yObj1;
+        move(sockfd, "fs");
+        if(xObj1_o != xObj1) {
+          if(xObj1_o < xObj1) {
+            
+          }
+        }
+      }    
+    }
 	}
 
 	return 0;
