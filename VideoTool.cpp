@@ -204,44 +204,48 @@ void move(int sock, char *buf, int delay) {
 	}
 }
 
+int distance(int x1, int x2, int y1, int y2) {
+	return ((x2-x1)*(x2-x1))+((y2-y1)*(y2-y1));
+}
+
 int main(int argc, char* argv[])
 {
-   int sockfd, portno;
-   struct sockaddr_in serv_addr;
-   struct hostent *server;
-   char buffer[256];
+   	int sockfd, portno;
+   	struct sockaddr_in serv_addr;
+   	struct hostent *server;
+   	char buffer[256];
   
-  if (argc < 3) {
-      fprintf(stderr,"usage %s hostname port\n", argv[0]);
-      exit(0);
-   }
-   portno = atoi(argv[2]); //193.226.12.219
-   /* Create a socket point */
-   sockfd = socket(AF_INET, SOCK_STREAM, 0);
-   if (sockfd < 0) {
-      perror("ERROR opening socket");
-      exit(1);
-   }
-   server = gethostbyname(argv[1]); //20232
-   if (server == NULL) {
-      fprintf(stderr,"ERROR, no such host\n");
-      exit(0);
-   }
-   bzero((char *) &serv_addr, sizeof(serv_addr));
-   serv_addr.sin_family = AF_INET;
-   bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-   serv_addr.sin_port = htons(portno);
-   /* Now connect to the server */
-   if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-      perror("ERROR connecting");
-      exit(1);
+   	if (argc < 3) {
+   	   fprintf(stderr,"usage %s hostname port\n", argv[0]);
+   	   exit(0);
+   	}
+   	portno = atoi(argv[2]); //193.226.12.219
+   	/* Create a socket point */
+   	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+   	if (sockfd < 0) {
+        perror("ERROR opening socket");
+        exit(1);
     }
-  //printf("Please enter the message: ");
- 	//bzero(buffer,256);
- 	//fgets(buffer,255,stdin);
-  //move(sockfd,buffer); 
+    server = gethostbyname(argv[1]); //20232
+    if (server == NULL) {
+    	fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    serv_addr.sin_port = htons(portno);
+    /* Now connect to the server */
+   	if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+   		perror("ERROR connecting");
+    	exit(1);
+    }
+    //printf("Please enter the message: ");
+    //bzero(buffer,256);
+    //fgets(buffer,255,stdin);
+	//move(sockfd,buffer); 
   
-  
+	  
 	//some boolean variables for different functionality within this
 	//program
 	bool trackObjects = true;
@@ -267,11 +271,12 @@ int main(int argc, char* argv[])
 	capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
 	//start an infinite loop where webcam feed is copied to cameraFeed matrix
 	//all of our operations will be performed within this loop
-  int xObj1=0, yObj1=0, xObj1_o, yObj1_o;
-  int xObj2=0, yObj2=0;
-  
-	while (1) {
+  	int xObj1=0, yObj1=0, xObj1_o=-1000, yObj1_o=-1000;
+  	int xObj2=0, yObj2=0;
+	float d1=0.0;
+  	float d2=0.0;
 
+	while (1) {
 
 		//store image to matrix
 		capture.read(cameraFeed);
@@ -288,19 +293,15 @@ int main(int argc, char* argv[])
 		//this function will return the x and y coordinates of the
 		//filtered object
 		if (trackObjects)
-			trackFilteredObject(xObj1, yObj1, threshold, cameraFeed);
-    
-    waitKey(30);
+			trackFilteredObject(xObj1, yObj1, threshold, cameraFeed);		
+		waitKey(30);
 
-
-    inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
-    
-    if (useMorphOps)
-  		morphOps(threshold);
-    
-    if (trackObjects)
-      trackFilteredObject(xObj2, yObj2, threshold, cameraFeed);
-    
+		inRange(HSV, Scalar(H_MIN2, S_MIN2, V_MIN2), Scalar(H_MAX2, S_MAX2, V_MAX2), threshold);
+		if (useMorphOps)
+	  		morphOps(threshold);	
+		if (trackObjects)
+			trackFilteredObject(xObj2, yObj2, threshold, cameraFeed);
+		waitKey(30);
 		//show frames
 		imshow(windowName2, threshold);
 		imshow(windowName, cameraFeed);
@@ -309,24 +310,22 @@ int main(int argc, char* argv[])
 		//delay 30ms so that screen can refresh.
 		//image will not appear without this waitKey() command
 		waitKey(30);
-    int difx, dify;
-    difx = abs(xObj1-xObj2);
-    dify = abs(yObj1-yObj2);
-    if (xObj1 && yObj1) {
-      if (xObj2 == 0 && yObj2 ==0) {
-        move(sockfd,"rrrrs");
-      }
-      else {
-        xObj1_o = xObj1;
-        yObj1_o = yObj1;
-        move(sockfd, "fs");
-        if(xObj1_o != xObj1) {
-          if(xObj1_o < xObj1) {
-            
-          }
-        }
-      }    
-    }
+
+		if(xObj2 && yObj2) { //opponent detected
+			if(xObj1_o == -1000 && yObj1_o == -1000) {
+				xObj1_o = xObj1; //set old coordinates 1st time
+				yObj1_o = yObj1;
+				continue;
+			}
+			move(sockfd, "fs", 1);
+			d1 = sqrt(distance(xObj1, xObj2, yObj1, yObj2)); //distance between opponent and me
+			d2 = sqrt(distance(xObj1_o, xObj2, yObj1_o, yObj2)); //distance between opponent and old me
+			if(d1 > d2) {
+				move(sockfd, "rrs", 1); //readjust direction if going away from opponent
+			}
+			xObj1_o = xObj1; //save old coordinates
+			yObj1_o = yObj1;
+		}
 	}
 
 	return 0;
